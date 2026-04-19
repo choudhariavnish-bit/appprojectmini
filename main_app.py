@@ -2,13 +2,13 @@ import os
 import django
 import tkinter as tk
 from tkinter import ttk, messagebox
-from cafe_system import CafeWindow
 
 # --- IMPORTANT: INITIALIZE DJANGO BEFORE IMPORTS ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 # Now import your model
+from cafe_system import CafeWindow
 from bookings.models import MasterBooking
 
 class NexusReserve:
