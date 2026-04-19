@@ -1,14 +1,16 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+# 1. Import the Billing system file
+from billing_system import ReceiptWindow
 
 class CafeWindow(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("NexusReserve - Cafe Ordering")
-        self.geometry("500x600")
+        self.geometry("450x600")
         self.configure(bg="#fdfdfd")
         
-        # --- Internal Data ---
+        # --- Menu Data ---
         self.menu = {
             "Espresso": 120,
             "Cold Coffee": 180,
@@ -37,7 +39,7 @@ class CafeWindow(tk.Toplevel):
         tk.Button(menu_frame, text="Add to Cart", command=self.add_to_cart, 
                   bg="#3498db", fg="white", relief="flat").grid(row=0, column=2, padx=10)
 
-        # --- Order Summary ---
+        # --- Order Summary List ---
         summary_frame = tk.LabelFrame(self, text=" Your Order ", padx=10, pady=10, bg="white")
         summary_frame.pack(padx=20, pady=10, fill="both", expand=True)
 
@@ -59,7 +61,7 @@ class CafeWindow(tk.Toplevel):
         item = self.item_var.get()
         price = self.menu[item]
         self.current_order.append(price)
-        self.order_listbox.insert(tk.END, f"{item:<20} ₹{price}")
+        self.order_listbox.insert(tk.END, f"{item} - ₹{price}")
         self.update_total()
 
     def update_total(self):
@@ -72,32 +74,36 @@ class CafeWindow(tk.Toplevel):
         self.update_total()
 
     def place_order(self):
-        # IMPORTANT: Django Import inside the function to avoid startup errors
+        # 2. Local import for Django Model
         from bookings.models import MasterBooking 
 
         total = sum(self.current_order)
         
         if total == 0:
-            messagebox.showwarning("Empty Cart", "Please add some items first!")
+            messagebox.showwarning("Empty", "Add items first!")
             return
 
-        try:
-            # Create a summary of items
-            items_list = self.order_listbox.get(0, tk.END)
-            details_str = ", ".join(items_list)
+        # Prepare string of all items for the database
+        items_list = self.order_listbox.get(0, tk.END)
+        all_items_string = ", ".join([item.strip() for item in items_list])
 
-            # Save to Django
+        try:
+            # 3. SAVE TO DJANGO DATABASE
             new_booking = MasterBooking(
-                customer_name="Cafe Guest", # You can customize this later
+                customer_name="Cafe Guest",
                 category="CAFE",
-                details=details_str[:200], # Limit characters
+                details=all_items_string, 
                 total_bill=total,
                 is_delivery=False
             )
             new_booking.save()
 
-            messagebox.showinfo("Order Placed", f"Success! Total Bill: ₹{total}\nOrder saved to Database.")
-            self.destroy() # Close window after success
+            # 4. TRIGGER BILLING RECEIPT
+            # Instead of a simple alert, this shows the receipt window
+            ReceiptWindow(self, "Cafe Guest", all_items_string, total)
+            
+            # 5. Hide the ordering window
+            self.withdraw() 
             
         except Exception as e:
-            messagebox.showerror("Database Error", f"Could not save order: {e}")
+            messagebox.showerror("Error", f"Failed to save: {e}")
