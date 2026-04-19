@@ -12,7 +12,8 @@ import cafe_system
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-# Now import your model
+# Now import your models
+from plane_system import FlightWindow
 from train_system import TrainWindow
 from cafe_system import CafeWindow
 from bookings.models import MasterBooking
@@ -66,6 +67,15 @@ class NexusReserve:
             cursor="hand2"
         )
         self.btn_train.pack(pady=10)
+          # Inside your __init__ or UI setup area in main_app.py
+        tk.Button(
+          self.root, 
+           text="✈️ Book Flights", 
+           command=self.open_flights,
+           font=('Helvetica', 12, 'bold'),
+           bg="#34495e", 
+           fg="white"
+        ).pack(pady=10) # Adjust packing/grid to match your layout
 
         # This line changes the 'theme' of the whole app
         style = ttk.Style()
@@ -145,6 +155,9 @@ class NexusReserve:
         # Ensure this is indented the same as def __init__
     def open_train_booking(self):
         TrainWindow(self.root)
+    def open_flights(self):
+    # This creates a new instance of your FlightWindow
+        FlightWindow(self.root)
 if __name__ == "__main__":
     root = tk.Tk()
     app = NexusReserve(root)
