@@ -2,6 +2,11 @@ import os
 import django
 import tkinter as tk
 from tkinter import ttk, messagebox
+import billing_system
+import cafe_system
+
+# Example: Calling a function from your billing system
+# billing_system.calculate_total()
 
 # --- IMPORTANT: INITIALIZE DJANGO BEFORE IMPORTS ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
