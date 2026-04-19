@@ -32,6 +32,11 @@ class NexusReserve:
         self.drop['values'] = ("FLIGHT", "TRAIN", "MOVIE", "CAFE")
         self.drop.grid(row=1, column=1, pady=10)
 
+        # Theme Colors
+        self.bg_color = "#094be6"  # Light Grayish Blue
+        self.primary_color = "#f372c8" # Dark Blue
+        self.root.configure(bg=self.bg_color)
+
         # 4. Delivery Checkbox Row
         self.deliv_var = tk.BooleanVar()
         tk.Checkbutton(main_frame, text="Is this a Delivery?", variable=self.deliv_var).grid(row=2, column=0, columnspan=2, pady=10)
