@@ -2,6 +2,7 @@ import os
 import django
 import tkinter as tk
 from tkinter import ttk, messagebox
+from cafe_system import CafeWindow
 
 # --- IMPORTANT: INITIALIZE DJANGO BEFORE IMPORTS ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
@@ -15,6 +16,7 @@ class NexusReserve:
         self.root = root
         self.root.title("NexusReserve Super-App")
         self.root.geometry("450x450")
+        
         
         # 1. Create a Main Container with padding
         main_frame = tk.Frame(root, padx=20, pady=20)
@@ -32,11 +34,6 @@ class NexusReserve:
         self.drop['values'] = ("FLIGHT", "TRAIN", "MOVIE", "CAFE")
         self.drop.grid(row=1, column=1, pady=10)
 
-        # Theme Colors
-        self.bg_color = "#094be6"  # Light Grayish Blue
-        self.primary_color = "#f372c8" # Dark Blue
-        self.root.configure(bg=self.bg_color)
-
         # 4. Delivery Checkbox Row
         self.deliv_var = tk.BooleanVar()
         tk.Checkbutton(main_frame, text="Is this a Delivery?", variable=self.deliv_var).grid(row=2, column=0, columnspan=2, pady=10)
@@ -47,6 +44,11 @@ class NexusReserve:
         
         tk.Button(main_frame, text="View All Bookings", bg="#3498db", fg="white", font=('Arial', 10, 'bold'),
                   command=self.show_records, width=20).grid(row=4, column=0, columnspan=2, pady=5)
+        # Update your button to this:
+        tk.Button(main_frame, text="Open Cafe Ordering ☕", 
+          bg="#e67e22", fg="white", font=('Arial', 10, 'bold'),
+          command=lambda: CafeWindow(root), # This opens the new file's window
+          width=20).grid(row=5, column=0, columnspan=2, pady=5)
 
         # This line changes the 'theme' of the whole app
         style = ttk.Style()
@@ -93,7 +95,36 @@ class NexusReserve:
 
         # 3. Pull data from Django and insert into the table
         for b in MasterBooking.objects.all():
-            tree.insert("", "end", values=(b.customer_name, b.category, b.total_bill, b.is_delivery))   
+            tree.insert("", "end", values=(b.customer_name, b.category, b.total_bill, b.is_delivery))
+
+    def open_cafe_page(self):
+        # 1. Create a new window for the Cafe
+        self.cafe_window = tk.Toplevel(self.root)
+        self.cafe_window.title("Cafe Management Dashboard")
+        self.cafe_window.geometry("600x400")
+        self.cafe_window.configure(bg="#ffffff")
+
+        # 2. Title for the page
+        tk.Label(self.cafe_window, text="☕ Cafe Bookings List", 
+                 font=('Helvetica', 16, 'bold'), bg="white", fg=self.primary_color).pack(pady=10)
+
+        # 3. Create the Treeview (Table)
+        columns = ("Name", "Total Bill", "Delivery")
+        tree = ttk.Treeview(self.cafe_window, columns=columns, show='headings')
+        
+        # Set column headers
+        tree.heading("Name", text="Customer Name")
+        tree.heading("Total Bill", text="Bill Amount")
+        tree.heading("Delivery", text="Is Delivery?")
+        
+        # 4. FILTER: Fetch ONLY "CAFE" bookings from Django
+        cafe_data = MasterBooking.objects.filter(category="CAFE")
+
+        for b in cafe_data:
+            delivery_status = "Yes" if b.is_delivery else "No"
+            tree.insert("", "end", values=(b.customer_name, f"₹{b.total_bill}", delivery_status))
+
+        tree.pack(fill="both", expand=True, padx=20, pady=20)          
 
 if __name__ == "__main__":
     root = tk.Tk()
