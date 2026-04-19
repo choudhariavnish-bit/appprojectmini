@@ -13,6 +13,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 # Now import your model
+from train_system import TrainWindow
 from cafe_system import CafeWindow
 from bookings.models import MasterBooking
 
@@ -54,6 +55,17 @@ class NexusReserve:
           bg="#e67e22", fg="white", font=('Arial', 10, 'bold'),
           command=lambda: CafeWindow(root), # This opens the new file's window
           width=20).grid(row=5, column=0, columnspan=2, pady=5)
+        # We use self.root because main_frame was not defined in your class
+        self.btn_train = tk.Button(
+            self.root, 
+            text="🚆 Train Booking",
+            font=("Arial", 12, "bold"),
+            bg="#2980b9",
+            fg="white",
+            command=self.open_train_booking,
+            cursor="hand2"
+        )
+        self.btn_train.pack(pady=10)
 
         # This line changes the 'theme' of the whole app
         style = ttk.Style()
@@ -129,8 +141,10 @@ class NexusReserve:
             delivery_status = "Yes" if b.is_delivery else "No"
             tree.insert("", "end", values=(b.customer_name, f"₹{b.total_bill}", delivery_status))
 
-        tree.pack(fill="both", expand=True, padx=20, pady=20)          
-
+        tree.pack(fill="both", expand=True, padx=20, pady=20) 
+        # Ensure this is indented the same as def __init__
+    def open_train_booking(self):
+        TrainWindow(self.root)
 if __name__ == "__main__":
     root = tk.Tk()
     app = NexusReserve(root)
