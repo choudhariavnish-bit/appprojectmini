@@ -14,6 +14,7 @@ from cafe_system import CafeWindow
 from plane_system import FlightWindow  # <--- ADDED
 from movie_system import MovieWindow   # <--- ADDED
 from bookings.models import MasterBooking
+from django.db.models import Sum
 
 # Professional Beige & Olive Palette
 COLORS = {
@@ -178,6 +179,12 @@ class NexusReserve(ctk.CTk):
 
     def open_train_booking(self):
         TrainWindow(self)
+    
+    def get_total_revenue(self):
+        # This sums up every 'total_bill' in your SQLite database
+        report = MasterBooking.objects.aggregate(Sum('total_bill'))
+        total = report['total_bill__sum'] or 0.0
+        return f"Total Revenue: ₹{total:,.2f}"
 
 if __name__ == "__main__":
     app = NexusReserve()
