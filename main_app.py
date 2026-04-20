@@ -13,19 +13,19 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 # Now import your model
+# Now import your models
+from plane_system import FlightWindow
 from train_system import TrainWindow
 from cafe_system import CafeWindow
 from bookings.models import MasterBooking
-from billing_system import ReceiptWindow
-
 
 class NexusReserve:
     def __init__(self, root):
         self.root = root
         self.root.title("NexusReserve Super-App")
         self.root.geometry("450x450")
-        
-        
+
+
         # 1. Create a Main Container with padding
         main_frame = tk.Frame(root, padx=20, pady=20)
         main_frame.pack(expand=True, fill="both")
@@ -49,7 +49,7 @@ class NexusReserve:
         # 5. Buttons Row
         tk.Button(main_frame, text="Confirm Booking", bg="#2ecc71", fg="white", font=('Arial', 10, 'bold'), 
                   command=self.save_to_db, width=20).grid(row=3, column=0, columnspan=2, pady=10)
-        
+
         tk.Button(main_frame, text="View All Bookings", bg="#3498db", fg="white", font=('Arial', 10, 'bold'),
                   command=self.show_records, width=20).grid(row=4, column=0, columnspan=2, pady=5)
         # Update your button to this:
@@ -68,6 +68,15 @@ class NexusReserve:
             cursor="hand2"
         )
         self.btn_train.pack(pady=10)
+          # Inside your __init__ or UI setup area in main_app.py
+        tk.Button(
+          self.root, 
+           text="✈️ Book Flights", 
+           command=self.open_flights,
+           font=('Helvetica', 12, 'bold'),
+           bg="#34495e", 
+           fg="white"
+        ).pack(pady=10) # Adjust packing/grid to match your layout
 
         # This line changes the 'theme' of the whole app
         style = ttk.Style()
@@ -130,12 +139,12 @@ class NexusReserve:
         # 3. Create the Treeview (Table)
         columns = ("Name", "Total Bill", "Delivery")
         tree = ttk.Treeview(self.cafe_window, columns=columns, show='headings')
-        
+
         # Set column headers
         tree.heading("Name", text="Customer Name")
         tree.heading("Total Bill", text="Bill Amount")
         tree.heading("Delivery", text="Is Delivery?")
-        
+
         # 4. FILTER: Fetch ONLY "CAFE" bookings from Django
         cafe_data = MasterBooking.objects.filter(category="CAFE")
 
@@ -145,11 +154,11 @@ class NexusReserve:
 
         tree.pack(fill="both", expand=True, padx=20, pady=20) 
         # Ensure this is indented the same as def __init__
-
-        
     def open_train_booking(self):
         TrainWindow(self.root)
+    def open_flights(self):
+    # This creates a new instance of your FlightWindow
+        FlightWindow(self.root)
 if __name__ == "__main__":
     root = tk.Tk()
     app = NexusReserve(root)
-    root.mainloop()
