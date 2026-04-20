@@ -18,71 +18,6 @@ from cafe_system import CafeWindow
 from bookings.models import MasterBooking
 from billing_system import ReceiptWindow
 
-class FlightWindow(tk.Toplevel):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("NexusReserve Sky-High Bookings")
-        self.geometry("450x550")
-        self.configure(bg="#f0f4f8")
-        
-        # Header
-        tk.Label(self, text="✈️ Flight Reservation", font=('Helvetica', 16, 'bold'), 
-                 bg="#f0f4f8", fg="#2c3e50").pack(pady=15)
-
-        # Destination Selection
-        tk.Label(self, text="Select Destination:", bg="#f0f4f8").pack()
-        self.dest_var = tk.StringVar(value="Mumbai (BOM)")
-        self.dest_drop = ttk.Combobox(self, textvariable=self.dest_var, state="readonly")
-        self.dest_drop['values'] = ("Delhi (DEL)", "Mumbai (BOM)", "London (LHR)", "Dubai (DXB)")
-        self.dest_drop.pack(pady=5)
-
-        # Travel Class
-        self.class_var = tk.StringVar(value="Economy")
-        tk.Radiobutton(self, text="Economy", variable=self.class_var, value="Economy", bg="#f0f4f8").pack()
-        tk.Radiobutton(self, text="Business", variable=self.class_var, value="Business", bg="#f0f4f8").pack()
-
-        # Passenger Name
-        tk.Label(self, text="Passenger Name:", bg="#f0f4f8").pack(pady=5)
-        self.ent_passenger = tk.Entry(self, font=('Arial', 11))
-        self.ent_passenger.pack(pady=5)
-
-        # Simple Price Logic
-        self.prices = {"Delhi (DEL)": 5000, "Mumbai (BOM)": 4500, "London (LHR)": 65000, "Dubai (DXB)": 25000}
-
-        # Save Button
-        tk.Button(self, text="Confirm Flight Booking", command=self.book_flight, 
-                  bg="#e67e22", fg="white", font=('Arial', 12, 'bold')).pack(pady=25)
-
-    def book_flight(self):
-        passenger = self.ent_passenger.get()
-        destination = self.dest_var.get()
-        travel_class = self.class_var.get()
-
-        if not passenger:
-            messagebox.showwarning("Error", "Please enter the passenger name!")
-            return
-
-        # Calculate Price
-        base_price = self.prices.get(destination, 0)
-        final_price = base_price * 2 if travel_class == "Business" else base_price
-        details = f"Flight to {destination} ({travel_class})"
-
-        try:
-            # SAVE TO DJANGO
-            new_booking = MasterBooking(
-                customer_name=passenger,
-                category="FLIGHT",
-                details=details,
-                total_bill=float(final_price),
-                is_delivery=False
-            )
-            new_booking.save()
-
-            # Show Receipt and Close Window
-            ReceiptWindow(self, passenger, details, final_price)
-            self.withdraw()
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to save to database: {e}")
 
 class NexusReserve:
     def __init__(self, root):
@@ -210,26 +145,6 @@ class NexusReserve:
 
         tree.pack(fill="both", expand=True, padx=20, pady=20) 
         # Ensure this is indented the same as def __init__
-
-        def __init__(self, root):
-        self.root = root
-        self.root.title("NexusReserve Dashboard")
-        self.root.geometry("400x400")
-        self.root.configure(bg="#2c3e50")
-
-        tk.Label(root, text="NexusReserve Super-App", font=('Helvetica', 18, 'bold'), 
-                 bg="#2c3e50", fg="white").pack(pady=30)
-
-        # Menu Buttons
-        tk.Button(root, text="✈️ Plane Booking", width=25, height=2, 
-                  bg="#3498db", fg="white", font=('Arial', 10, 'bold'),
-                  command=self.open_plane_page).pack(pady=10)
-
-        # You can add buttons for Cafe and Train here later!
-
-        def open_plane_page(self):
-        # This opens the class we defined above
-        FlightWindow(self.root)
 
         
     def open_train_booking(self):
