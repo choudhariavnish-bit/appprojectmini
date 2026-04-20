@@ -13,6 +13,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 # Now import your models
+from movie_system import MovieWindow
 from plane_system import FlightWindow
 from train_system import TrainWindow
 from cafe_system import CafeWindow
@@ -76,6 +77,16 @@ class NexusReserve:
            bg="#34495e", 
            fg="white"
         ).pack(pady=10) # Adjust packing/grid to match your layout
+        # In your main_app UI setup
+        tk.Button(
+          self.root, 
+          text="🎬 Movie Bookings", 
+           command=self.open_movies,
+           font=('Arial', 12),
+           bg="#e74c3c", 
+           fg="white",
+           width=20
+        ).pack(pady=10)
 
         # This line changes the 'theme' of the whole app
         style = ttk.Style()
@@ -158,6 +169,8 @@ class NexusReserve:
     def open_flights(self):
     # This creates a new instance of your FlightWindow
         FlightWindow(self.root)
+    def open_movies(self):
+        MovieWindow(self.root) # Opens the movie window as a child of main root
 if __name__ == "__main__":
     root = tk.Tk()
     app = NexusReserve(root)
