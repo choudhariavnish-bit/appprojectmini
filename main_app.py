@@ -8,24 +8,26 @@ from tkinter import ttk, messagebox
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
+# --- IMPORTS FOR SUB-SYSTEMS ---
 from train_system import TrainWindow
 from cafe_system import CafeWindow
+from plane_system import FlightWindow  # <--- ADDED
+from movie_system import MovieWindow   # <--- ADDED
 from bookings.models import MasterBooking
 
 # Professional Beige & Olive Palette
 COLORS = {
-    "sidebar": "#3B3D37",    # Deep Olive Charcoal
-    "olive_dark": "#556B2F",  # Dark Olive Green
-    "olive_light": "#808000", # Muted Olive
-    "beige_bg": "#F5F5DC",    # Main Beige Background
-    "card_cream": "#FCFAED",  # Creamy off-white for cards
-    "dark_text": "#1A1A1A",   # High-contrast Dark Font for readability
-    "muted_text": "#4A4A4A",  # Subtle dark grey
-    # Category Accents
-    "FLIGHT": "#A9BA9D",      # Sage Olive
-    "TRAIN": "#BCB88A",       # Khaki Olive
-    "MOVIE": "#D2B48C",       # Tan/Beige
-    "CAFE": "#6B8E23"         # Olive Drab
+    "sidebar": "#3B3D37",
+    "olive_dark": "#556B2F",
+    "olive_light": "#808000",
+    "beige_bg": "#F5F5DC",
+    "card_cream": "#FCFAED",
+    "dark_text": "#1A1A1A",
+    "muted_text": "#4A4A4A",
+    "FLIGHT": "#A9BA9D",
+    "TRAIN": "#BCB88A",
+    "MOVIE": "#D2B48C",
+    "CAFE": "#6B8E23"
 }
 
 class NexusReserve(ctk.CTk):
@@ -46,16 +48,18 @@ class NexusReserve(ctk.CTk):
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=COLORS["sidebar"])
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         
-        # Logo with Serif Font
         self.logo = ctk.CTkLabel(self.sidebar, text="NEXUS\nRESERVE", 
                                  font=ctk.CTkFont(family="Georgia", size=26, weight="bold"),
                                  text_color=COLORS["beige_bg"])
         self.logo.grid(row=0, column=0, padx=20, pady=40)
 
+        # --- NAVIGATION BUTTONS ---
         self.add_nav_btn("🏠 Dashboard", self.show_home, 1)
-        self.add_nav_btn("🚆 Train System", self.open_train_booking, 2)
-        self.add_nav_btn("☕ Cafe System", lambda: CafeWindow(self), 3)
-        self.add_nav_btn("📊 Records", self.show_records, 4)
+        self.add_nav_btn("✈️ Flight System", lambda: FlightWindow(self), 2) # <--- ADDED
+        self.add_nav_btn("🚆 Train System", self.open_train_booking, 3)
+        self.add_nav_btn("🎬 Movie System", lambda: MovieWindow(self), 4)  # <--- ADDED
+        self.add_nav_btn("☕ Cafe System", lambda: CafeWindow(self), 5)
+        self.add_nav_btn("📊 Records", self.show_records, 6)
 
     def add_nav_btn(self, text, command, row):
         btn = ctk.CTkButton(self.sidebar, text=text, height=45, corner_radius=8,
@@ -71,16 +75,13 @@ class NexusReserve(ctk.CTk):
                                       border_width=1, border_color="#D1D1BC")
         self.main_view.grid(row=0, column=1, padx=40, pady=40, sticky="nsew")
 
-        # Header with Dark Typography
         ctk.CTkLabel(self.main_view, text="Executive Reservation", 
                      font=ctk.CTkFont(family="Georgia", size=32, weight="bold"), 
                      text_color=COLORS["dark_text"]).pack(pady=(50, 10))
 
-        # --- Form Card ---
         form_frame = ctk.CTkFrame(self.main_view, fg_color="transparent")
         form_frame.pack(padx=60, pady=10, fill="x")
 
-        # Inputs with Dark Text
         ctk.CTkLabel(form_frame, text="CUSTOMER NAME", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(20, 0))
         self.ent_name = ctk.CTkEntry(form_frame, placeholder_text="e.g. Avnish Choudhari", 
@@ -104,7 +105,6 @@ class NexusReserve(ctk.CTk):
                                      text_color=COLORS["dark_text"], fg_color=COLORS["olive_dark"])
         self.check.pack(pady=20)
 
-        # Confirm Button
         self.btn_confirm = ctk.CTkButton(self.main_view, text="CONFIRM BOOKING", 
                                          fg_color=COLORS["olive_dark"], hover_color=COLORS["olive_light"],
                                          height=55, width=300, corner_radius=5,
@@ -133,12 +133,17 @@ class NexusReserve(ctk.CTk):
         )
         booking.save()
         
-        # Fixed: using 'category' variable instead of undefined 'choice'
         messagebox.showinfo("Success", f"✨ {category} Booking Confirmed for {name}!")
         
-        # Auto-Navigate
-        if category == "TRAIN": self.open_train_booking()
-        elif category == "CAFE": CafeWindow(self)
+        # --- AUTO-NAVIGATE LOGIC ---
+        if category == "TRAIN": 
+            self.open_train_booking()
+        elif category == "CAFE": 
+            CafeWindow(self)
+        elif category == "FLIGHT":  # <--- ADDED
+            FlightWindow(self)
+        elif category == "MOVIE":   # <--- ADDED
+            MovieWindow(self)
 
     def show_records(self):
         records_win = ctk.CTkToplevel(self)
