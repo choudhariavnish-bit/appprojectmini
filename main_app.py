@@ -12,7 +12,6 @@ import cafe_system
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-# Now import your model
 # Now import your models
 from plane_system import FlightWindow
 from train_system import TrainWindow
@@ -24,8 +23,8 @@ class NexusReserve:
         self.root = root
         self.root.title("NexusReserve Super-App")
         self.root.geometry("450x450")
-
-
+        
+        
         # 1. Create a Main Container with padding
         main_frame = tk.Frame(root, padx=20, pady=20)
         main_frame.pack(expand=True, fill="both")
@@ -49,7 +48,7 @@ class NexusReserve:
         # 5. Buttons Row
         tk.Button(main_frame, text="Confirm Booking", bg="#2ecc71", fg="white", font=('Arial', 10, 'bold'), 
                   command=self.save_to_db, width=20).grid(row=3, column=0, columnspan=2, pady=10)
-
+        
         tk.Button(main_frame, text="View All Bookings", bg="#3498db", fg="white", font=('Arial', 10, 'bold'),
                   command=self.show_records, width=20).grid(row=4, column=0, columnspan=2, pady=5)
         # Update your button to this:
@@ -139,12 +138,12 @@ class NexusReserve:
         # 3. Create the Treeview (Table)
         columns = ("Name", "Total Bill", "Delivery")
         tree = ttk.Treeview(self.cafe_window, columns=columns, show='headings')
-
+        
         # Set column headers
         tree.heading("Name", text="Customer Name")
         tree.heading("Total Bill", text="Bill Amount")
         tree.heading("Delivery", text="Is Delivery?")
-
+        
         # 4. FILTER: Fetch ONLY "CAFE" bookings from Django
         cafe_data = MasterBooking.objects.filter(category="CAFE")
 
@@ -162,3 +161,4 @@ class NexusReserve:
 if __name__ == "__main__":
     root = tk.Tk()
     app = NexusReserve(root)
+    root.mainloop()
