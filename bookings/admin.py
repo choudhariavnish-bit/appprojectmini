@@ -3,24 +3,8 @@ from .models import MasterBooking
 
 @admin.register(MasterBooking)
 class MasterBookingAdmin(admin.ModelAdmin):
-    # Columns to show in the list
-    list_display = ('id', 'customer_name', 'category', 'total_bill', 'is_delivery', 'created_at')
+    # This tells Django exactly which columns to show in the list
+    list_display = ('customer_name', 'category', 'total_bill', 'details')
     
-    # Clickable links
-    list_display_links = ('id', 'customer_name')
-    
-    # Sidebar filters (Perfect for your multi-module app)
-    list_filter = ('category', 'is_delivery', 'created_at')
-    
-    # Search box for names or specific details
-    search_fields = ('customer_name', 'details')
-    
-    # Grouping the detail view
-    fieldsets = (
-        ("Customer Info", {
-            'fields': ('customer_name', 'category')
-        }),
-        ("Transaction Details", {
-            'fields': ('details', 'total_bill', 'is_delivery')
-        }),
-    )
+    # This allows you to click the category to filter (e.g., see only CAFE)
+    list_filter = ('category',)
