@@ -1,0 +1,42 @@
+class BookMovie:
+    def __init__(self):
+        self.bookings = {}
+        self.counter = 1
+
+    def booking(self):
+        bid = f"BK{self.counter:04d}"
+        self.bookings[bid] = {
+            "name": input("Customer Name: "),
+            "movie": input("Movie Name: "),
+            "seat": input("Seat Number: "),
+            "price": float(input("Ticket Price: ₹")),
+            "status": "CONFIRMED"
+        }
+        self.counter += 1
+        print(f"\nbooking Confirmed! Your Booking ID: {bid}\n")
+
+    def cancellation(self):
+        bid = input("Enter Booking ID: ").upper()
+        if bid in self.bookings and self.bookings[bid]["status"] == "CONFIRMED":
+            self.bookings[bid]["status"] = "CANCELLED"
+            print(f"\n❌ Booking {bid} Cancelled!\n")
+        else:
+            print("\nInvalid ID or already cancelled.\n")
+
+    def refund(self):
+        bid = input("Enter Booking ID: ").upper()
+        b = self.bookings.get(bid)
+        if b and b["status"] == "CANCELLED":
+            print(f"\n Refund of ₹{b['price']} processed for {b['name']}!\n")
+            b["status"] = "REFUNDED"
+        else:
+            print("\n Invalid ID or booking not cancelled.\n")
+
+
+cinema = BookMovie()
+actions = {"1": cinema.booking, "2": cinema.cancellation, "3": cinema.refund}
+
+while True:
+    choice = input("\n1. Book  2. Cancel  3. Refund  4. Exit\nChoice: ")
+    if choice == "4": break
+    actions.get(choice, lambda: print(" Invalid choice!"))()

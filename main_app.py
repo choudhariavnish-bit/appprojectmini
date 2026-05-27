@@ -4,17 +4,22 @@ import tkinter as tk
 import customtkinter as ctk
 from tkinter import ttk, messagebox
 
+# ✅ NEW IMPORTS (ADDED ONLY)
+import threading
+from email_service import send_booking_email
+from billing_system import ReceiptWindow   # make sure this exists
+
 # --- DJANGO INITIALIZATION ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 # --- IMPORTS FOR SUB-SYSTEMS ---
-from delivery_system import DeliveryPage # <--- STEP 2: IMPORTED
 from train_system import TrainWindow
 from cafe_system import CafeWindow
-from plane_system import FlightWindow 
-from movie_system import MovieWindow   
+from plane_system import FlightWindow
+from movie_system import MovieWindow
 from bookings.models import MasterBooking
+from django.db.models import Sum
 
 # Professional Beige & Olive Palette
 COLORS = {
@@ -30,6 +35,18 @@ COLORS = {
     "MOVIE": "#D2B48C",
     "CAFE": "#6B8E23"
 }
+
+# ✅ NEW COMMON EMAIL FUNCTION (ADDED ONLY)
+def send_email_async(app, email, name, category, amount):
+    receipt = ReceiptWindow(app, name, f"{category} Booking", amount)
+    pdf_path = receipt.generate_pdf()
+    receipt.destroy()
+
+    def task():
+        send_booking_email(email, name, category, pdf_path, amount)
+
+    threading.Thread(target=task, daemon=True).start()
+
 
 class NexusReserve(ctk.CTk):
     def __init__(self):
@@ -55,9 +72,9 @@ class NexusReserve(ctk.CTk):
         self.logo.grid(row=0, column=0, padx=20, pady=40)
 
         self.add_nav_btn("🏠 Dashboard", self.show_home, 1)
-        self.add_nav_btn("✈️ Flight System", lambda: FlightWindow(self), 2) 
+        self.add_nav_btn("✈️ Flight System", lambda: FlightWindow(self), 2)
         self.add_nav_btn("🚆 Train System", self.open_train_booking, 3)
-        self.add_nav_btn("🎬 Movie System", lambda: MovieWindow(self), 4)  
+        self.add_nav_btn("🎬 Movie System", lambda: MovieWindow(self), 4)
         self.add_nav_btn("☕ Cafe System", lambda: CafeWindow(self), 5)
         self.add_nav_btn("📊 Records", self.show_records, 6)
 
@@ -82,14 +99,25 @@ class NexusReserve(ctk.CTk):
         form_frame = ctk.CTkFrame(self.main_view, fg_color="transparent")
         form_frame.pack(padx=60, pady=10, fill="x")
 
+        # NAME
         ctk.CTkLabel(form_frame, text="CUSTOMER NAME", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(20, 0))
-        self.ent_name = ctk.CTkEntry(form_frame, placeholder_text="Enter customer name...", 
+        self.ent_name = ctk.CTkEntry(form_frame, placeholder_text="e.g. Avnish Choudhari", 
                                      width=380, height=45, corner_radius=5,
                                      fg_color="#FFFFFF", text_color=COLORS["dark_text"],
                                      border_color="#BDB76B")
         self.ent_name.pack(pady=10)
 
+        # ✅ EMAIL FIELD (ADDED ONLY)
+        ctk.CTkLabel(form_frame, text="CUSTOMER EMAIL", 
+                     font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
+        self.ent_email = ctk.CTkEntry(form_frame, placeholder_text="e.g. example@gmail.com", 
+                                     width=380, height=45, corner_radius=5,
+                                     fg_color="#FFFFFF", text_color=COLORS["dark_text"],
+                                     border_color="#BDB76B")
+        self.ent_email.pack(pady=10)
+
+        # CATEGORY
         ctk.CTkLabel(form_frame, text="SERVICE CATEGORY", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.cat_var = ctk.StringVar(value="CAFE")
@@ -100,18 +128,10 @@ class NexusReserve(ctk.CTk):
                                       command=self.update_category_ui)
         self.drop.pack(pady=10)
 
-        ctk.CTkLabel(form_frame, text="CAFE PREFERENCE", 
-                     font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(15, 5))
-        
-        self.cafe_mode_var = ctk.StringVar(value="Book Table")
-        self.cafe_switch = ctk.CTkSegmentedButton(form_frame, 
-                                                  values=["Book Table", "Order Delivery"],
-                                                  variable=self.cafe_mode_var,
-                                                  selected_color=COLORS["olive_dark"],
-                                                  selected_hover_color=COLORS["olive_light"],
-                                                  unselected_color="#E0E0D0",
-                                                  width=380, height=40)
-        self.cafe_switch.pack(pady=10)
+        self.deliv_var = tk.BooleanVar()
+        self.check = ctk.CTkCheckBox(form_frame, text="Apply Priority Delivery?", variable=self.deliv_var,
+                                     text_color=COLORS["dark_text"], fg_color=COLORS["olive_dark"])
+        self.check.pack(pady=20)
 
         self.btn_confirm = ctk.CTkButton(self.main_view, text="CONFIRM BOOKING", 
                                          fg_color=COLORS["olive_dark"], hover_color=COLORS["olive_light"],
@@ -123,52 +143,42 @@ class NexusReserve(ctk.CTk):
     def update_category_ui(self, choice):
         new_color = COLORS.get(choice, COLORS["olive_dark"])
         self.drop.configure(fg_color=new_color)
-        if choice != "CAFE":
-            self.cafe_switch.configure(state="disabled")
-        else:
-            self.cafe_switch.configure(state="normal")
 
-    # --- UPDATED SAVE_TO_DB WITH STEP 3 LOGIC ---
     def save_to_db(self):
-        name = self.ent_name.get()
+        name = self.ent_name.get().strip()
+        customer_email = self.ent_email.get().strip()
         category = self.cat_var.get()
-        cafe_mode = self.cafe_mode_var.get()
         
-        if not name:
-            messagebox.showwarning("Incomplete", "Please provide a customer name!")
+        if not name or not customer_email:
+            messagebox.showwarning("Incomplete", "Please provide both Customer Name and Email!")
             return
-        
-        # Determine if it's a delivery order
-        is_delivery = True if (category == "CAFE" and cafe_mode == "Order Delivery") else False
-        
-        # In a real app, you'd calculate this based on menu choices
-        total_bill_amount = 450.0 if category == "CAFE" else 0.0
 
-        booking = MasterBooking(
-            customer_name=name,
-            category=category,
-            details=f"{category} booking - Mode: {cafe_mode}",
-            total_bill=total_bill_amount,
-            is_delivery=is_delivery
-        )
-        booking.save()
-        
-        messagebox.showinfo("Success", f"✨ {category} Booking ({cafe_mode}) Confirmed!")
+        try:
+            booking = MasterBooking(
+                customer_name=name,
+                category=category,
+                details=f"Digital booking for {category}",
+                total_bill=0.0,
+                is_delivery=self.deliv_var.get()
+            )
+            booking.save()
 
-        # --- REDIRECTION LOGIC (STEP 3) ---
-        if is_delivery:
-            # Launch the delivery tracking page
-            DeliveryPage(self, name, total_bill_amount)
-        else:
-            # Launch standard system windows
-            if category == "TRAIN": 
-                self.open_train_booking()
-            elif category == "CAFE": 
-                CafeWindow(self)
-            elif category == "FLIGHT":  
-                FlightWindow(self)
-            elif category == "MOVIE":   
-                MovieWindow(self)
+            # ✅ REPLACED EMAIL LOGIC (CLEAN + COMMON)
+            send_email_async(self, customer_email, name, category, 0.0)
+
+            messagebox.showinfo("Success", f"Booking Confirmed!\nReceipt sent to {customer_email}")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to process: {e}")
+
+        if category == "TRAIN": 
+            self.open_train_booking()
+        elif category == "CAFE": 
+            CafeWindow(self)
+        elif category == "FLIGHT":
+            FlightWindow(self)
+        elif category == "MOVIE":
+            MovieWindow(self)
 
     def show_records(self):
         records_win = ctk.CTkToplevel(self)
@@ -180,17 +190,7 @@ class NexusReserve(ctk.CTk):
         ctk.CTkLabel(records_win, text="Active Reservations", 
                      font=("Georgia", 24, "bold"), text_color=COLORS["dark_text"]).pack(pady=20)
 
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("Treeview", background="white", foreground=COLORS["dark_text"], 
-                        fieldbackground="white", rowheight=35, font=("Helvetica", 11))
-        style.configure("Treeview.Heading", background=COLORS["olive_dark"], 
-                        foreground="white", font=("Helvetica", 12, "bold"))
-        
-        tree_frame = ctk.CTkFrame(records_win, corner_radius=10)
-        tree_frame.pack(fill="both", expand=True, padx=30, pady=20)
-
-        tree = ttk.Treeview(tree_frame, columns=("ID", "Name", "Cat", "Bill"), show='headings')
+        tree = ttk.Treeview(records_win, columns=("ID", "Name", "Cat", "Bill"), show='headings')
         tree.heading("ID", text="Ref ID")
         tree.heading("Name", text="Customer")
         tree.heading("Cat", text="Service")
@@ -203,7 +203,19 @@ class NexusReserve(ctk.CTk):
 
     def open_train_booking(self):
         TrainWindow(self)
+    
+    def get_total_revenue(self):
+        report = MasterBooking.objects.aggregate(Sum('total_bill'))
+        total = report['total_bill__sum'] or 0.0
+        return f"Total Revenue: ₹{total:,.2f}"
+
 
 if __name__ == "__main__":
-    app = NexusReserve()
-    app.mainloop()
+    from auth_system import LoginWindow
+
+    def start_main_app():
+        app = NexusReserve()
+        app.mainloop()
+
+    login = LoginWindow(start_main_app)
+    login.mainloop()
