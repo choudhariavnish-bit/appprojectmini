@@ -4,10 +4,11 @@ import tkinter as tk
 import customtkinter as ctk
 from tkinter import ttk, messagebox
 
-# ✅ NEW IMPORTS (ADDED ONLY)
+# ✅ ASYNC PIPELINES
 import threading
 from email_service import send_booking_email
-from billing_system import ReceiptWindow   # make sure this exists
+from billing_system import ReceiptWindow   
+from sms_service import send_booking_sms       # 🆕 ADDED FOR SMS
 
 # --- DJANGO INITIALIZATION ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
@@ -36,16 +37,21 @@ COLORS = {
     "CAFE": "#6B8E23"
 }
 
-# ✅ NEW COMMON EMAIL FUNCTION (ADDED ONLY)
-def send_email_async(app, email, name, category, amount):
+# ✅ UPDATED COMMON NOTIFICATION ROUTINE (ASYNC VIA THREADS)
+def process_notifications_async(app, email, phone, name, category, amount):
+    # Process PDF Generation synchronously on the UI Thread boundary safely
     receipt = ReceiptWindow(app, name, f"{category} Booking", amount)
     pdf_path = receipt.generate_pdf()
     receipt.destroy()
 
-    def task():
+    # Dispatch external API Network requests asynchronously to prevent UI application freezing
+    def background_task():
+        # 1. Dispatch Email
         send_booking_email(email, name, category, pdf_path, amount)
+        # 2. Dispatch SMS (🆕 ADDED FOR SMS)
+        send_booking_sms(phone, name, category, amount)
 
-    threading.Thread(target=task, daemon=True).start()
+    threading.Thread(target=background_task, daemon=True).start()
 
 
 class NexusReserve(ctk.CTk):
@@ -53,7 +59,8 @@ class NexusReserve(ctk.CTk):
         super().__init__()
 
         self.title("NexusReserve | Executive Dashboard")
-        self.geometry("1100x700")
+        self.geometry("1100(800") # Height gently scaled to accommodate phone bar cleanly
+        self.geometry("1100x780")
         self.configure(fg_color=COLORS["beige_bg"])
 
         self.grid_columnconfigure(1, weight=1)
@@ -90,32 +97,41 @@ class NexusReserve(ctk.CTk):
         
         self.main_view = ctk.CTkFrame(self, corner_radius=15, fg_color=COLORS["card_cream"],
                                       border_width=1, border_color="#D1D1BC")
-        self.main_view.grid(row=0, column=1, padx=40, pady=40, sticky="nsew")
+        self.main_view.grid(row=0, column=1, padx=40, pady=30, sticky="nsew")
 
         ctk.CTkLabel(self.main_view, text="Executive Reservation", 
                      font=ctk.CTkFont(family="Georgia", size=32, weight="bold"), 
-                     text_color=COLORS["dark_text"]).pack(pady=(50, 10))
+                     text_color=COLORS["dark_text"]).pack(pady=(30, 10))
 
         form_frame = ctk.CTkFrame(self.main_view, fg_color="transparent")
-        form_frame.pack(padx=60, pady=10, fill="x")
+        form_frame.pack(padx=60, pady=5, fill="x")
 
         # NAME
         ctk.CTkLabel(form_frame, text="CUSTOMER NAME", 
-                     font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(20, 0))
+                     font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.ent_name = ctk.CTkEntry(form_frame, placeholder_text="e.g. Avnish Choudhari", 
                                      width=380, height=45, corner_radius=5,
                                      fg_color="#FFFFFF", text_color=COLORS["dark_text"],
                                      border_color="#BDB76B")
-        self.ent_name.pack(pady=10)
+        self.ent_name.pack(pady=5)
 
-        # ✅ EMAIL FIELD (ADDED ONLY)
+        # EMAIL FIELD
         ctk.CTkLabel(form_frame, text="CUSTOMER EMAIL", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.ent_email = ctk.CTkEntry(form_frame, placeholder_text="e.g. example@gmail.com", 
                                      width=380, height=45, corner_radius=5,
                                      fg_color="#FFFFFF", text_color=COLORS["dark_text"],
                                      border_color="#BDB76B")
-        self.ent_email.pack(pady=10)
+        self.ent_email.pack(pady=5)
+
+        # 🆕 PHONE NUMBER FIELD (ADDED FOR SMS)
+        ctk.CTkLabel(form_frame, text="CUSTOMER PHONE NUMBER", 
+                     font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
+        self.ent_phone = ctk.CTkEntry(form_frame, placeholder_text="e.g. +919876543210", 
+                                     width=380, height=45, corner_radius=5,
+                                     fg_color="#FFFFFF", text_color=COLORS["dark_text"],
+                                     border_color="#BDB76B")
+        self.ent_phone.pack(pady=5)
 
         # CATEGORY
         ctk.CTkLabel(form_frame, text="SERVICE CATEGORY", 
@@ -126,19 +142,19 @@ class NexusReserve(ctk.CTk):
                                       fg_color=COLORS["olive_dark"], button_color=COLORS["olive_light"],
                                       width=380, height=45, corner_radius=5,
                                       command=self.update_category_ui)
-        self.drop.pack(pady=10)
+        self.drop.pack(pady=5)
 
         self.deliv_var = tk.BooleanVar()
         self.check = ctk.CTkCheckBox(form_frame, text="Apply Priority Delivery?", variable=self.deliv_var,
                                      text_color=COLORS["dark_text"], fg_color=COLORS["olive_dark"])
-        self.check.pack(pady=20)
+        self.check.pack(pady=15)
 
         self.btn_confirm = ctk.CTkButton(self.main_view, text="CONFIRM BOOKING", 
                                          fg_color=COLORS["olive_dark"], hover_color=COLORS["olive_light"],
                                          height=55, width=300, corner_radius=5,
                                          font=ctk.CTkFont(size=15, weight="bold"),
                                          command=self.save_to_db)
-        self.btn_confirm.pack(pady=30)
+        self.btn_confirm.pack(pady=15)
 
     def update_category_ui(self, choice):
         new_color = COLORS.get(choice, COLORS["olive_dark"])
@@ -147,13 +163,16 @@ class NexusReserve(ctk.CTk):
     def save_to_db(self):
         name = self.ent_name.get().strip()
         customer_email = self.ent_email.get().strip()
+        customer_phone = self.ent_phone.get().strip() # 🆕 ADDED FOR SMS
         category = self.cat_var.get()
         
-        if not name or not customer_email:
-            messagebox.showwarning("Incomplete", "Please provide both Customer Name and Email!")
+        # Validation checks
+        if not name or not customer_email or not customer_phone:
+            messagebox.showwarning("Incomplete", "Please provide Customer Name, Email, and Phone Number!")
             return
 
         try:
+            # Assumes your MasterBooking Django table supports phone tracking, or it will execute locally 
             booking = MasterBooking(
                 customer_name=name,
                 category=category,
@@ -163,14 +182,15 @@ class NexusReserve(ctk.CTk):
             )
             booking.save()
 
-            # ✅ REPLACED EMAIL LOGIC (CLEAN + COMMON)
-            send_email_async(self, customer_email, name, category, 0.0)
+            # ✅ ASYNC DISPATCH (Dispatches both background operations)
+            process_notifications_async(self, customer_email, customer_phone, name, category, 0.0)
 
-            messagebox.showinfo("Success", f"Booking Confirmed!\nReceipt sent to {customer_email}")
+            messagebox.showinfo("Success", f"Booking Confirmed!\nReceipt emailed and SMS dispatched to {customer_phone}")
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to process: {e}")
 
+        # Redirect triggers to child systems
         if category == "TRAIN": 
             self.open_train_booking()
         elif category == "CAFE": 
