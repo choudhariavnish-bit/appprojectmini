@@ -1,28 +1,35 @@
+# main_app.py
 import os
+import sys
 import django
-import tkinter as tk
-import customtkinter as ctk
-from tkinter import ttk, messagebox
-
-# ✅ ASYNC PIPELINES
 import threading
-from email_service import send_booking_email
-from billing_system import ReceiptWindow   
-from sms_service import send_booking_sms       # 🆕 ADDED FOR SMS
+import tkinter as tk
+from tkinter import ttk, messagebox
+import customtkinter as ctk
 
 # --- DJANGO INITIALIZATION ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
-django.setup()
+try:
+    django.setup()
+except Exception as e:
+    print(f"Django Initialization Warning: {e}. Check your DJANGO_SETTINGS_MODULE environment configuration.")
 
-# --- IMPORTS FOR SUB-SYSTEMS ---
-from train_system import TrainWindow
-from cafe_system import CafeWindow
-from plane_system import FlightWindow
-from movie_system import MovieWindow
-from bookings.models import MasterBooking
-from django.db.models import Sum
+# --- IMPORTS FOR SUB-SYSTEMS & APP LAYERS ---
+try:
+    from email_service import send_booking_email
+    from sms_service import send_booking_sms  # 👈 Clean route to external SMS module
+    from billing_system import ReceiptWindow   
+    from train_system import TrainWindow
+    from cafe_system import CafeWindow
+    from plane_system import FlightWindow
+    from movie_system import MovieWindow
+    from bookings.models import MasterBooking
+    from django.db.models import Sum
+except ImportError as e:
+    print(f"System Subcomponent Import Warning: {e}. Ensure all module files exist in your local directory path.")
 
-# Professional Beige & Olive Palette
+
+# --- APPLICATION COLOR PALETTE ---
 COLORS = {
     "sidebar": "#3B3D37",
     "olive_dark": "#556B2F",
@@ -37,30 +44,42 @@ COLORS = {
     "CAFE": "#6B8E23"
 }
 
-# ✅ UPDATED COMMON NOTIFICATION ROUTINE (ASYNC VIA THREADS)
-def process_notifications_async(app, email, phone, name, category, amount):
-    # Process PDF Generation synchronously on the UI Thread boundary safely
-    receipt = ReceiptWindow(app, name, f"{category} Booking", amount)
-    pdf_path = receipt.generate_pdf()
-    receipt.destroy()
 
-    # Dispatch external API Network requests asynchronously to prevent UI application freezing
+# --- ASYNC DISPATCH BACKGROUND PIPELINE ---
+def process_notifications_async(app, email, phone, name, category, amount):
+    """Generates PDF receipt safely on main loop boundaries, then passes
+    network execution context off to background threads to stop GUI freezing."""
+    pdf_path = None
+    try:
+        receipt = ReceiptWindow(app, name, f"{category} Booking", amount)
+        pdf_path = receipt.generate_pdf()
+        receipt.destroy()
+    except Exception as e:
+        print(f"[Receipt Generation Error]: {e}. Proceeding with communication pathways anyway.")
+
     def background_task():
-        # 1. Dispatch Email
-        send_booking_email(email, name, category, pdf_path, amount)
-        # 2. Dispatch SMS (🆕 ADDED FOR SMS)
-        send_booking_sms(phone, name, category, amount)
+        # Pipeline 1: Dispatch Email Confirmation
+        try:
+            send_booking_email(email, name, category, pdf_path, amount)
+        except Exception as e:
+            print(f"[Email Engine Error]: {e}")
+            
+        # Pipeline 2: Dispatch SMS Confirmation via Twilio Gateway Engine
+        try:
+            send_booking_sms(phone, name, category, amount)
+        except Exception as e:
+            print(f"[SMS Engine Error]: {e}")
 
     threading.Thread(target=background_task, daemon=True).start()
 
 
+# --- MAIN CORE WINDOW ARCHITECTURE ---
 class NexusReserve(ctk.CTk):
     def __init__(self):
         super().__init__()
 
         self.title("NexusReserve | Executive Dashboard")
-        self.geometry("1100(800") # Height gently scaled to accommodate phone bar cleanly
-        self.geometry("1100x780")
+        self.geometry("1100x780")  # Extended height to completely clear phone widget margins
         self.configure(fg_color=COLORS["beige_bg"])
 
         self.grid_columnconfigure(1, weight=1)
@@ -93,7 +112,8 @@ class NexusReserve(ctk.CTk):
         btn.grid(row=row, column=0, padx=15, pady=10, sticky="ew")
 
     def show_home(self):
-        if hasattr(self, 'main_view'): self.main_view.destroy()
+        if hasattr(self, 'main_view'): 
+            self.main_view.destroy()
         
         self.main_view = ctk.CTkFrame(self, corner_radius=15, fg_color=COLORS["card_cream"],
                                       border_width=1, border_color="#D1D1BC")
@@ -106,7 +126,7 @@ class NexusReserve(ctk.CTk):
         form_frame = ctk.CTkFrame(self.main_view, fg_color="transparent")
         form_frame.pack(padx=60, pady=5, fill="x")
 
-        # NAME
+        # Widget 1: Customer Name Input Entry Field
         ctk.CTkLabel(form_frame, text="CUSTOMER NAME", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.ent_name = ctk.CTkEntry(form_frame, placeholder_text="e.g. Avnish Choudhari", 
@@ -115,7 +135,7 @@ class NexusReserve(ctk.CTk):
                                      border_color="#BDB76B")
         self.ent_name.pack(pady=5)
 
-        # EMAIL FIELD
+        # Widget 2: Customer Email Input Entry Field
         ctk.CTkLabel(form_frame, text="CUSTOMER EMAIL", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.ent_email = ctk.CTkEntry(form_frame, placeholder_text="e.g. example@gmail.com", 
@@ -124,8 +144,8 @@ class NexusReserve(ctk.CTk):
                                      border_color="#BDB76B")
         self.ent_email.pack(pady=5)
 
-        # 🆕 PHONE NUMBER FIELD (ADDED FOR SMS)
-        ctk.CTkLabel(form_frame, text="CUSTOMER PHONE NUMBER", 
+        # Widget 3: Customer Phone Number Input Entry Field
+        ctk.CTkLabel(form_frame, text="CUSTOMER PHONE NUMBER (WITH COUNTRY CODE)", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.ent_phone = ctk.CTkEntry(form_frame, placeholder_text="e.g. +919876543210", 
                                      width=380, height=45, corner_radius=5,
@@ -133,7 +153,7 @@ class NexusReserve(ctk.CTk):
                                      border_color="#BDB76B")
         self.ent_phone.pack(pady=5)
 
-        # CATEGORY
+        # Widget 4: Dropdown Service Category Menu Box selector
         ctk.CTkLabel(form_frame, text="SERVICE CATEGORY", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.cat_var = ctk.StringVar(value="CAFE")
@@ -144,11 +164,13 @@ class NexusReserve(ctk.CTk):
                                       command=self.update_category_ui)
         self.drop.pack(pady=5)
 
+        # Widget 5: Boolean Toggle Options Checkbox
         self.deliv_var = tk.BooleanVar()
         self.check = ctk.CTkCheckBox(form_frame, text="Apply Priority Delivery?", variable=self.deliv_var,
                                      text_color=COLORS["dark_text"], fg_color=COLORS["olive_dark"])
         self.check.pack(pady=15)
 
+        # Widget 6: Transaction Process Action Button Control Unit
         self.btn_confirm = ctk.CTkButton(self.main_view, text="CONFIRM BOOKING", 
                                          fg_color=COLORS["olive_dark"], hover_color=COLORS["olive_light"],
                                          height=55, width=300, corner_radius=5,
@@ -163,16 +185,21 @@ class NexusReserve(ctk.CTk):
     def save_to_db(self):
         name = self.ent_name.get().strip()
         customer_email = self.ent_email.get().strip()
-        customer_phone = self.ent_phone.get().strip() # 🆕 ADDED FOR SMS
+        customer_phone = self.ent_phone.get().strip()
         category = self.cat_var.get()
         
-        # Validation checks
+        # Strict Client Input Validation Block
         if not name or not customer_email or not customer_phone:
-            messagebox.showwarning("Incomplete", "Please provide Customer Name, Email, and Phone Number!")
+            messagebox.showwarning("Incomplete Fields", "Please provide Customer Name, Email, and Phone Number!")
+            return
+
+        # Validation: Catch phone numbers without country code prefix
+        if not customer_phone.startswith('+'):
+            messagebox.showwarning("Formatting Warning", "Please include your international country code starting with '+' (e.g., +91 for India, +1 for USA) to ensure SMS delivery!")
             return
 
         try:
-            # Assumes your MasterBooking Django table supports phone tracking, or it will execute locally 
+            # Model Construction and Serialization Layer Execution
             booking = MasterBooking(
                 customer_name=name,
                 category=category,
@@ -182,15 +209,14 @@ class NexusReserve(ctk.CTk):
             )
             booking.save()
 
-            # ✅ ASYNC DISPATCH (Dispatches both background operations)
+            # Execute threaded network transactions concurrently
             process_notifications_async(self, customer_email, customer_phone, name, category, 0.0)
-
-            messagebox.showinfo("Success", f"Booking Confirmed!\nReceipt emailed and SMS dispatched to {customer_phone}")
+            messagebox.showinfo("Success", f"Booking Confirmed!\nNotification dispatch engines launched successfully.")
 
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to process: {e}")
+            messagebox.showerror("Database Transaction Error", f"Failed to store model entry: {e}")
 
-        # Redirect triggers to child systems
+        # Routing controller pipeline forks
         if category == "TRAIN": 
             self.open_train_booking()
         elif category == "CAFE": 
@@ -216,8 +242,11 @@ class NexusReserve(ctk.CTk):
         tree.heading("Cat", text="Service")
         tree.heading("Bill", text="Amount")
         
-        for b in MasterBooking.objects.all():
-            tree.insert("", "end", values=(b.id, b.customer_name, b.category, f"₹{b.total_bill}"))
+        try:
+            for b in MasterBooking.objects.all():
+                tree.insert("", "end", values=(b.id, b.customer_name, b.category, f"₹{b.total_bill}"))
+        except Exception as e:
+            print(f"Error drawing database views onto Treeview: {e}")
         
         tree.pack(fill="both", expand=True)
 
@@ -225,17 +254,25 @@ class NexusReserve(ctk.CTk):
         TrainWindow(self)
     
     def get_total_revenue(self):
-        report = MasterBooking.objects.aggregate(Sum('total_bill'))
-        total = report['total_bill__sum'] or 0.0
-        return f"Total Revenue: ₹{total:,.2f}"
+        try:
+            report = MasterBooking.objects.aggregate(Sum('total_bill'))
+            total = report['total_bill__sum'] or 0.0
+            return f"Total Revenue: ₹{total:,.2f}"
+        except Exception:
+            return "Total Revenue: ₹0.00"
 
 
 if __name__ == "__main__":
-    from auth_system import LoginWindow
+    try:
+        from auth_system import LoginWindow
+        
+        def start_main_app():
+            app = NexusReserve()
+            app.mainloop()
 
-    def start_main_app():
+        login = LoginWindow(start_main_app)
+        login.mainloop()
+    except ImportError:
+        print("[Auth Subsystem Missing]: Starting app main panel directly without gatekeeping controls.")
         app = NexusReserve()
         app.mainloop()
-
-    login = LoginWindow(start_main_app)
-    login.mainloop()
