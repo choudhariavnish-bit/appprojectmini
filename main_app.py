@@ -1,3 +1,4 @@
+# main_app.py
 import os
 import sys
 import django
@@ -5,62 +6,6 @@ import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 import customtkinter as ctk
-
-# --- TWILIO SMS UTILITY ENGINE ---
-# Log into your Twilio Console to retrieve these values.
-# If left as 'your_...', the application gracefully switches to console simulation mode.
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', 'your_account_sid_here')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', 'your_auth_token_here')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', 'your_twilio_phone_number_here')
-
-def send_booking_sms(to_phone, customer_name, category, amount):
-    """Sends a transactional confirmation SMS using Twilio REST API.
-    Runs inside a background thread to ensure UI fluidity."""
-    try:
-        from twilio.rest import Client
-    except ImportError:
-        print("\n[SMS ENGINE ALERT] 'twilio' package not installed. Run: pip install twilio")
-        print(f"[Simulation Only] SMS to {to_phone}: Hi {customer_name}, your {category} booking is confirmed! Total: ₹{amount}\n")
-        return False
-
-    try:
-        # Check if the developer has updated the default placeholder strings
-        if "your_" in TWILIO_ACCOUNT_SID or "your_" in TWILIO_PHONE_NUMBER:
-            print("\n" + "="*60)
-            print("📣 [SMS SIMULATION MODE ACTIVE]")
-            print(f"To Number: {to_phone}")
-            print(f"Message  : Hello {customer_name}, your booking for {category} is confirmed. Total: ₹{amount}.")
-            print("💡 Tip   : Replace placeholders in main_app.py with real Twilio keys for live phone delivery.")
-            print("="*60 + "\n")
-            return True
-
-        # Live API Dispatch Engine
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        
-        message_body = (
-            f"NexusReserve Confirmation\n\n"
-            f"Hello {customer_name},\n"
-            f"Your booking for {category} has been successfully confirmed. "
-            f"Total Bill: ₹{amount}.\n\n"
-            f"Thank you for choosing NexusReserve!"
-        )
-
-        client.messages.create(
-            body=message_body,
-            from_=TWILIO_PHONE_NUMBER,
-            to=to_phone
-        )
-        print(f"✅ Live SMS successfully dispatched to network gateway for {to_phone}")
-        return True
-
-    except Exception as e:
-        import traceback
-        print("\n" + "🚨"*5 + " TWILIO API ERROR DIAGNOSTIC LOG " + "🚨"*5)
-        traceback.print_exc()
-        print("💡 Troubleshoot: Verify your account balance, or register this phone number under 'Verified Caller IDs' if using a Twilio Trial Account.")
-        print("="*60 + "\n")
-        return False
-
 
 # --- DJANGO INITIALIZATION ---
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
@@ -72,6 +17,7 @@ except Exception as e:
 # --- IMPORTS FOR SUB-SYSTEMS & APP LAYERS ---
 try:
     from email_service import send_booking_email
+    from sms_service import send_booking_sms  # 👈 Clean route to external SMS module
     from billing_system import ReceiptWindow   
     from train_system import TrainWindow
     from cafe_system import CafeWindow
@@ -119,7 +65,10 @@ def process_notifications_async(app, email, phone, name, category, amount):
             print(f"[Email Engine Error]: {e}")
             
         # Pipeline 2: Dispatch SMS Confirmation via Twilio Gateway Engine
-        send_booking_sms(phone, name, category, amount)
+        try:
+            send_booking_sms(phone, name, category, amount)
+        except Exception as e:
+            print(f"[SMS Engine Error]: {e}")
 
     threading.Thread(target=background_task, daemon=True).start()
 
@@ -195,7 +144,7 @@ class NexusReserve(ctk.CTk):
                                      border_color="#BDB76B")
         self.ent_email.pack(pady=5)
 
-        # Widget 3: Customer Phone Number Input Entry Field (With country code notice)
+        # Widget 3: Customer Phone Number Input Entry Field
         ctk.CTkLabel(form_frame, text="CUSTOMER PHONE NUMBER (WITH COUNTRY CODE)", 
                      font=("Helvetica", 11, "bold"), text_color=COLORS["dark_text"]).pack(pady=(10, 0))
         self.ent_phone = ctk.CTkEntry(form_frame, placeholder_text="e.g. +919876543210", 
@@ -262,7 +211,7 @@ class NexusReserve(ctk.CTk):
 
             # Execute threaded network transactions concurrently
             process_notifications_async(self, customer_email, customer_phone, name, category, 0.0)
-            messagebox.showinfo("Success", f"Booking Confirmed!\nReceipt process scheduled and SMS dispatched to {customer_phone}")
+            messagebox.showinfo("Success", f"Booking Confirmed!\nNotification dispatch engines launched successfully.")
 
         except Exception as e:
             messagebox.showerror("Database Transaction Error", f"Failed to store model entry: {e}")
@@ -314,7 +263,6 @@ class NexusReserve(ctk.CTk):
 
 
 if __name__ == "__main__":
-    # Fallback boot cycle routine if the auth sub-layer module is dropped out of workspace context
     try:
         from auth_system import LoginWindow
         
