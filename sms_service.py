@@ -3,9 +3,9 @@ import os
 from twilio.rest import Client
 
 # Note: In a production environment, keep these credentials in your Django settings.py or environment variables.
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', 'your_account_sid_here')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', 'your_auth_token_here')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', 'your_twilio_phone_number_here')
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', 'ACd954317eebebfc4b01a8101412d2584d')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', 'ee9347fe34539100b85a5036972f33cb')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '+917066958282')
 
 def send_booking_sms(to_phone, customer_name, category, amount):
     """Sends a transactional confirmation SMS via Twilio API."""
