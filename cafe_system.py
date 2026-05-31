@@ -21,10 +21,8 @@ class CafeWindow(ctk.CTkToplevel):
         self.geometry("500x700")
         self.resizable(False, False)
         
-        # Enforce keeping window on top
         self.attributes("-topmost", True)
 
-        # --- Menu Data ---
         self.menu = {
             "Espresso": 120,
             "Cold Coffee": 180,
@@ -34,29 +32,25 @@ class CafeWindow(ctk.CTkToplevel):
         }
         self.current_order = []
         
-        # --- Video & FX System State Engine ---
-        self.video_path = "13662307-uhd_3840_2160_25fps.mp4"
+        self.video_path = r"C:\appproject\13662307-uhd_3840_2160_25fps.mp4"
         self.video_cap = None
         self.is_running = True
         
-        # FX Timing Controls
         self.frame_count = 0
         self.start_time = time.time()
         self.glitch_active = False
         self.glitch_duration = 0
 
-        # Base layout container
         self.root_container = ctk.CTkFrame(self, corner_radius=0, fg_color="#05070A")
         self.root_container.pack(fill="both", expand=True)
 
-        # 🎥 Layer 0: Video Display Viewport
+        # 🎥 Layer 0: High-Exposure Video Viewport
         self.video_label = tk.Label(self.root_container, bg="#05070A", borderwidth=0, highlightthickness=0)
         self.video_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        # 🌌 Layer 1: Dark Translucent Glass Filter Panel
-        # 🛠️ CRITICAL FIX: Passed dimensions to constructor directly instead of .place()
+        # 🌌 Layer 1: Futuristic Wireframe HUD (Removed heavy dark background color so video shines through)
         self.glass_overlay = ctk.CTkFrame(self.root_container, width=440, height=640, corner_radius=12, 
-                                          fg_color="#070C12", border_width=1, border_color="#00E5FF")
+                                          fg_color="transparent", border_width=2, border_color="#00E5FF")
         self.glass_overlay.place(relx=0.5, rely=0.5, anchor="center")
 
         # --- UI Sub-components ---
@@ -70,7 +64,7 @@ class CafeWindow(ctk.CTkToplevel):
         self.status_label.pack(pady=(0, 20))
 
         # Selection Interface Box
-        menu_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#0D161F", border_width=1, border_color="#1A2633")
+        menu_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#090F14", border_width=1, border_color="#1A2633")
         menu_frame.pack(padx=25, pady=10, fill="x")
 
         ctk.CTkLabel(menu_frame, text="SELECT MENU DISPATCH:", font=("Courier", 11, "bold"), 
@@ -95,13 +89,13 @@ class CafeWindow(ctk.CTkToplevel):
         self.add_btn.pack(padx=15, pady=12, fill="x")
 
         # Cart Matrix Box
-        summary_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#0D161F", border_width=1, border_color="#1A2633")
+        summary_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#090F14", border_width=1, border_color="#1A2633")
         summary_frame.pack(padx=25, pady=10, fill="both", expand=True)
 
         ctk.CTkLabel(summary_frame, text="CURRENT TRANSACTION STACK:", font=("Courier", 11, "bold"), 
                      text_color="#E0E6ED").pack(pady=(8, 2), padx=15, anchor="w")
 
-        self.order_listbox = tk.Listbox(summary_frame, font=("Courier", 11), bg="#070C12", 
+        self.order_listbox = tk.Listbox(summary_frame, font=("Courier", 11), bg="#05070A", 
                                         fg="#00FF66", borderwidth=0, highlightthickness=0,
                                         selectbackground="#1A2633")
         self.order_listbox.pack(padx=15, pady=5, fill="both", expand=True)
@@ -126,10 +120,8 @@ class CafeWindow(ctk.CTkToplevel):
                                        command=self.place_order, width=170, corner_radius=4)
         self.place_btn.pack(side="right", fill="x", expand=True)
 
-        # Close handler
         self.protocol("WM_DELETE_WINDOW", self.terminate_window)
 
-        # Force render UI to clear setup
         self.lift()
         self.focus_force()
         self.update()
@@ -178,6 +170,11 @@ class CafeWindow(ctk.CTkToplevel):
 
             if ret:
                 self.frame_count += 1
+                
+                # 🛠️ NEW STYLING GAIN: Algorithmic exposure amplifier. 
+                # Multiplies color data array matrices to pull the dark milk-pouring highlights into crisp clarity.
+                frame = cv2.convertScaleAbs(frame, alpha=1.4, beta=25)
+                
                 h, w, _ = frame.shape
                 
                 # --- EFFECT 1: Dynamic Rhythmic Camera Pulse Zoom ---
