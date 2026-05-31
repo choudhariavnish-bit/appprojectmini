@@ -3,11 +3,16 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import customtkinter as ctk
 import cv2
+import numpy as np
+import random
+import time
 from PIL import Image, ImageTk
 import os
 
-# Import the Billing system file
-from billing_system import ReceiptWindow
+try:
+    from billing_system import ReceiptWindow
+except ImportError:
+    ReceiptWindow = None
 
 class CafeWindow(ctk.CTkToplevel):
     def __init__(self, parent):
@@ -16,7 +21,7 @@ class CafeWindow(ctk.CTkToplevel):
         self.geometry("500x700")
         self.resizable(False, False)
         
-        # Enforce keeping window on top of main background matrix viewport
+        # Enforce keeping window on top
         self.attributes("-topmost", True)
 
         # --- Menu Data ---
@@ -29,10 +34,16 @@ class CafeWindow(ctk.CTkToplevel):
         }
         self.current_order = []
         
-        # --- Video System State Engine ---
-        self.video_path = "136613662307-uhd_3840_2160_25fps.mp4"
+        # --- Video & FX System State Engine ---
+        self.video_path = "13662307-uhd_3840_2160_25fps.mp4"
         self.video_cap = None
         self.is_running = True
+        
+        # FX Timing Controls
+        self.frame_count = 0
+        self.start_time = time.time()
+        self.glitch_active = False
+        self.glitch_duration = 0
 
         # Base layout container
         self.root_container = ctk.CTkFrame(self, corner_radius=0, fg_color="#05070A")
@@ -43,22 +54,23 @@ class CafeWindow(ctk.CTkToplevel):
         self.video_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # 🌌 Layer 1: Dark Translucent Glass Filter Panel
-        self.glass_overlay = ctk.CTkFrame(self.root_container, corner_radius=12, 
-                                          fg_color="#0A0F14", border_width=1, border_color="#1A2633")
-        self.glass_overlay.place(relx=0.5, rely=0.5, anchor="center", width=440, height=640)
+        # 🛠️ CRITICAL FIX: Passed dimensions to constructor directly instead of .place()
+        self.glass_overlay = ctk.CTkFrame(self.root_container, width=440, height=640, corner_radius=12, 
+                                          fg_color="#070C12", border_width=1, border_color="#00E5FF")
+        self.glass_overlay.place(relx=0.5, rely=0.5, anchor="center")
 
         # --- UI Sub-components ---
-        self.title_label = ctk.CTkLabel(self.glass_overlay, text="☕ NEXUS CAFE OPERATOR", 
+        self.title_label = ctk.CTkLabel(self.glass_overlay, text="⚡ NEXUS CAFE OPERATOR", 
                                          font=ctk.CTkFont(family="Courier", size=22, weight="bold"),
                                          text_color="#00E5FF")
         self.title_label.pack(pady=(30, 5))
         
-        self.status_label = ctk.CTkLabel(self.glass_overlay, text="LIQUID REFRESHMENT LAYER LIVE", 
+        self.status_label = ctk.CTkLabel(self.glass_overlay, text="INITIALIZING DATA CHANNELS...", 
                                           font=("Courier", 10), text_color="#00FF66")
         self.status_label.pack(pady=(0, 20))
 
         # Selection Interface Box
-        menu_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#121B22", border_width=1, border_color="#1A2633")
+        menu_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#0D161F", border_width=1, border_color="#1A2633")
         menu_frame.pack(padx=25, pady=10, fill="x")
 
         ctk.CTkLabel(menu_frame, text="SELECT MENU DISPATCH:", font=("Courier", 11, "bold"), 
@@ -83,13 +95,13 @@ class CafeWindow(ctk.CTkToplevel):
         self.add_btn.pack(padx=15, pady=12, fill="x")
 
         # Cart Matrix Box
-        summary_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#121B22", border_width=1, border_color="#1A2633")
+        summary_frame = ctk.CTkFrame(self.glass_overlay, fg_color="#0D161F", border_width=1, border_color="#1A2633")
         summary_frame.pack(padx=25, pady=10, fill="both", expand=True)
 
         ctk.CTkLabel(summary_frame, text="CURRENT TRANSACTION STACK:", font=("Courier", 11, "bold"), 
                      text_color="#E0E6ED").pack(pady=(8, 2), padx=15, anchor="w")
 
-        self.order_listbox = tk.Listbox(summary_frame, font=("Courier", 11), bg="#0A0F14", 
+        self.order_listbox = tk.Listbox(summary_frame, font=("Courier", 11), bg="#070C12", 
                                         fg="#00FF66", borderwidth=0, highlightthickness=0,
                                         selectbackground="#1A2633")
         self.order_listbox.pack(padx=15, pady=5, fill="both", expand=True)
@@ -117,50 +129,134 @@ class CafeWindow(ctk.CTkToplevel):
         # Close handler
         self.protocol("WM_DELETE_WINDOW", self.terminate_window)
 
-        # Start Video Background Stream Loop Execution
-        self.initialize_video_pipeline()
+        # Force render UI to clear setup
+        self.lift()
+        self.focus_force()
+        self.update()
+        
+        self.after(100, self.initialize_video_pipeline)
 
     def initialize_video_pipeline(self):
-        """Initializes OpenCV video decode system streams safely."""
+        if not self.is_running:
+            return
+            
         if os.path.exists(self.video_path):
-            self.video_cap = cv2.VideoCapture(self.video_path)
-            self.play_video_frame()
-        else:
-            print(f"🚨 Critical Fallback: Video data missing at path target location: '{self.video_path}'")
-            self.status_label.configure(text="VIDEO FLOW PATH DETACHED (FILE NOT FOUND)", text_color="#FF3333")
+            try:
+                self.video_cap = cv2.VideoCapture(self.video_path)
+                if self.video_cap.isOpened():
+                    self.status_label.configure(text="AI-NATIVE FLOW ENGINE RUNNING", text_color="#00FF66")
+                    self.play_video_frame()
+                    return
+            except Exception as e:
+                print(f"OpenCV Initialization Error: {e}")
+                
+        self.handle_video_failure("FILE PATH NOT LOCATED")
+
+    def handle_video_failure(self, reason):
+        self.status_label.configure(text=f"VIDEO STREAM DEGRADED ({reason})", text_color="#FF3333")
+        try:
+            static_bg = np.zeros((700, 500, 3), dtype=np.uint8)
+            for y in range(0, 700, 35):
+                cv2.line(static_bg, (0, y), (500, y), (20, 30, 25), 1)
+            cv2_image = cv2.cvtColor(static_bg, cv2.COLOR_BGR2RGB)
+            pil_img = Image.fromarray(cv2_image)
+            tk_img = ImageTk.PhotoImage(image=pil_img)
+            self.video_label.configure(image=tk_img)
+            self.video_label.image = tk_img
+        except Exception as e:
+            print(f"Failed to render static grid layout: {e}")
 
     def play_video_frame(self):
-        """Processes video frame array updates asynchronously while managing memory locks."""
         if not self.is_running or self.video_cap is None:
             return
 
-        ret, frame = self.video_cap.read()
-        
-        # Auto wrap video index pointer back to index 0 on EOF
-        if not ret:
-            self.video_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        try:
             ret, frame = self.video_cap.read()
+            if not ret:
+                self.video_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = self.video_cap.read()
 
-        if ret:
-            try:
-                # Downscale resolution constraints explicitly matching container geometries
-                frame = cv2.resize(frame, (500, 700))
+            if ret:
+                self.frame_count += 1
+                h, w, _ = frame.shape
                 
-                # Transform OpenCV space (BGR) array to standard processing array layout (RGB)
+                # --- EFFECT 1: Dynamic Rhythmic Camera Pulse Zoom ---
+                elapsed = time.time() - self.start_time
+                pulse = np.sin(elapsed * 4.5)
+                
+                if pulse > 0.7:  
+                    zoom_factor = 1.25
+                elif 0.2 < pulse <= 0.7:
+                    zoom_factor = 1.08
+                else:
+                    zoom_factor = 1.0
+                
+                if zoom_factor > 1.0:
+                    nw, nh = int(w / zoom_factor), int(h / zoom_factor)
+                    x1, y1 = (w - nw) // 2, (h - nh) // 2
+                    frame = frame[y1:y1+nh, x1:x1+nw]
+
+                frame = cv2.resize(frame, (500, 700))
+
+                # --- EFFECT 2: Occasional Digital Chromatic/Glitch Jumps ---
+                if self.frame_count % 45 == 0:
+                    self.glitch_active = True
+                    self.glitch_duration = random.randint(2, 5)
+
+                if self.glitch_active and self.glitch_duration > 0:
+                    self.glitch_duration -= 1
+                    glitch_type = random.choice(["slice", "chromatic", "invert"])
+                    
+                    if glitch_type == "slice":
+                        for _ in range(3):
+                            y_start = random.randint(100, 600)
+                            h_slice = random.randint(10, 40)
+                            shift = random.randint(-20, 20)
+                            frame[y_start:y_start+h_slice, :] = np.roll(frame[y_start:y_start+h_slice, :], shift, axis=1)
+                    
+                    elif glitch_type == "chromatic":
+                        b, g, r = cv2.split(frame)
+                        b = np.roll(b, 8, axis=1)
+                        r = np.roll(r, -8, axis=1)
+                        frame = cv2.merge([b, g, r])
+                        
+                    elif glitch_type == "invert":
+                        frame = cv2.bitwise_not(frame)
+
+                    if self.glitch_duration <= 0:
+                        self.glitch_active = False
+
+                # --- EFFECT 3: "AI-Native" Corporate Typography Overlay ---
+                cv2.rectangle(frame, (0, 0), (500, 65), (5, 7, 10), -1)
+                
+                if (self.frame_count // 30) % 3 == 0:
+                    text_str = "REINVENTING THE FUTURE OF REFRESHMENT"
+                    color_text = (0, 229, 255)
+                elif (self.frame_count // 30) % 3 == 1:
+                    text_str = "AGENTIC COFFEE WORKFLOW DISPATCHERS: ON"
+                    color_text = (102, 255, 0)
+                else:
+                    text_str = "INTELLIGENT SYSTEM MATRIX // LIQUID LAYER"
+                    color_text = (0, 153, 255)
+                
+                cv2.putText(frame, text_str, (15, 40), cv2.FONT_HERSHEY_SIMPLEX, 
+                            0.45, color_text, 1, cv2.LINE_AA)
+                
+                cv2.line(frame, (0, 64), (500, 64), (26, 38, 51), 1)
+
                 cv2_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 pil_img = Image.fromarray(cv2_image)
                 tk_img = ImageTk.PhotoImage(image=pil_img)
 
-                # 🛠️ CRITICAL FIX: Save an explicit memory pointer directly on the widget
-                # This breaks garbage collection and keeps the frames visible on screen
                 self.video_label.configure(image=tk_img)
                 self.video_label.image = tk_img 
-                
-            except Exception as e:
-                print(f"[Frame Raster Render Intercept Failure Fault]: {e}")
+            else:
+                self.handle_video_failure("STREAM INTERRUPTED")
+                return
+        except Exception as e:
+            print(f"[FX Pipeline Exception]: {e}")
 
-        # Re-queue update task loop tick every 35ms (~28 FPS output fluid synchronization)
-        self.after(35, self.play_video_frame)
+        self.after(33, self.play_video_frame)
 
     def add_to_cart(self):
         item = self.item_var.get()
@@ -179,7 +275,11 @@ class CafeWindow(ctk.CTkToplevel):
         self.update_total()
 
     def place_order(self):
-        from bookings.models import MasterBooking 
+        try:
+            from bookings.models import MasterBooking
+        except ImportError:
+            messagebox.showerror("Configuration Error", "Django Database Models Unavailable.")
+            return
 
         total = sum(self.current_order)
         if total == 0:
@@ -199,15 +299,19 @@ class CafeWindow(ctk.CTkToplevel):
             )
             new_booking.save()
 
-            ReceiptWindow(self, "Cafe Guest", all_items_string, total)
+            if ReceiptWindow is not None:
+                ReceiptWindow(self, "Cafe Guest", all_items_string, total)
+            else:
+                messagebox.showinfo("Success", f"Order Logged! Total: ₹{total}")
+                
             self.terminate_window() 
             
         except Exception as e:
             messagebox.showerror("Data Loss Fault", f"Failed to sync central storage block: {e}")
 
     def terminate_window(self):
-        """Releases capture handles and kills window context smoothly."""
         self.is_running = False
         if self.video_cap is not None:
             self.video_cap.release()
+            self.video_cap = None
         self.destroy()

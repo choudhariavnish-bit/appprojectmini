@@ -101,7 +101,10 @@ class NexusReserve(ctk.CTk):
         self.add_nav_btn("✈️ Flight System", lambda: FlightWindow(self), 2)
         self.add_nav_btn("🚆 Train System", self.open_train_booking, 3)
         self.add_nav_btn("🎬 Movie System", lambda: MovieWindow(self), 4)
-        self.add_nav_btn("☕ Cafe System", lambda: CafeWindow(self), 5)
+        
+        # 🎯 BOUND TO REFERENCE METHOD ROOT ENTRY:
+        self.add_nav_btn("☕ Cafe System", self.open_cafe, 5) 
+        
         self.add_nav_btn("📊 Records", self.show_records, 6)
 
     def add_nav_btn(self, text, command, row):
@@ -220,7 +223,7 @@ class NexusReserve(ctk.CTk):
         if category == "TRAIN": 
             self.open_train_booking()
         elif category == "CAFE": 
-            CafeWindow(self)
+            self.open_cafe() # 👈 Safely routes through reference handler
         elif category == "FLIGHT":
             FlightWindow(self)
         elif category == "MOVIE":
@@ -249,6 +252,11 @@ class NexusReserve(ctk.CTk):
             print(f"Error drawing database views onto Treeview: {e}")
         
         tree.pack(fill="both", expand=True)
+
+    # 🛠️ INTEGRATED CAFE METHOD REFERENCE
+    def open_cafe(self):
+        """Instantiates the Cyber Cafe sub-system window while securing an explicit reference."""
+        self.cafe_popup = CafeWindow(self) # Keeps the window instance alive in this main page
 
     def open_train_booking(self):
         TrainWindow(self)
